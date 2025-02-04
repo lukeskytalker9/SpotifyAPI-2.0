@@ -1,0 +1,275 @@
+@startuml MainUML
+
+
+class SQLObject {
+    -SQLCursor: pyodbc
+    -instance: SQLObject
+
+    +__call__(): list
+    +commit(): None
+    +close(): None
+}
+
+SQLObject *-- SQLObject
+
+
+
+
+class SpotifyAccessor {
+    +__init__(self , authorizationTolken: json): SpotifyAccessor
+    +<color:blue>removeAllSongsFromPlaylist(splaylistID): None</color>
+    +<color:blue>addSongToGenPlaylist(genPlaylistID: str, songIDList: list[str]): None</color>
+
+}
+
+Spotipy <|-- SpotifyAccessor
+
+
+class AppMain #Orange { 
+    __Login Functions__
+    +login(): None
+
+   __Real Functions __
+   +<color:purple>getUserData(): json </color>
+   +<color:red>updateDatabase(): json</color>
+   +<color:blue>requestPlaylist(requestData: json): json</color>
+   +<color:lime>updateUnallowedPlaylist(requestData: json): json</color>
+}
+
+AppMain *-- User
+
+
+class User {
+    -userID: str
+    -username: str
+    -profilePhotoURL: str
+
+    -authority: AuthorityLevel
+    
+    -genPlaylistID: Playlist
+    -databasPlaylistID: Playlist
+    -authorizationTolken: json
+
+    +__init__(self , authorizationTolken: json): User
+    -getValidPlaylists(): list[Playlist]
+    +<color:purple>__repr__(self): json </color>
+    +<color:red>updateData(self): bool</color>
+    +<color:red>addSongToDatabasePlaylist(songs: Playlist): None</color>
+    +<color:red>removeSongToDatabasePlaylist(songs: Playlist): None</color>
+    +<color:blue>addSongToGenPlaylist(songIDList: list[str]): None</color>
+    +<color:lime>updateUnallowedPlaylist(requestData: json): json</color>
+
+}
+
+note right of User::__repr__
+    This will return a json of all the attributes
+end note
+
+note right of User::updateData
+    for playlist in ownedValidPlaylists:
+        if playlist.isUpdated():
+            PlaylistComparator().updateData()
+        #Confirm that genPlaytlist exists
+end note
+
+SpotifyAccessor <|--  User
+
+
+enum AuthorityLevel {
+    ADMIN
+    USER
+    GUEST
+}
+
+User *-- AuthorityLevel
+
+
+class Playlist {
+    -id: str
+    -name: str
+    -imgURL: str
+
+    -songSet: set[Song]
+    
+    +<color:red>__sub__(self , other: Playlist): set[Song]</color>
+    +<color:red>__add__(self , other: Playlist): set[Song]</color> 
+    +<color:blue>addSong(song: Song): None</color>
+}
+
+class DatabasePlaylist {
+    +__init__(self , playlistID: str): DatabasePlaylist
+    +loadIDData(): None
+    +loadSongs(): None
+}
+
+Playlist <|-- DatabasePlaylist
+
+class SpotPlaylist {
+    +__init__(self , playlistShell: Playlist): SpotPlaylist
+    +loadSongs(spotifyAccess: SpotifyAccessor): None
+}
+
+Playlist <|-- SpotPlaylist
+
+
+
+
+class Song {
+    -id: st
+    -name: str
+    -dateMade: str
+    -imgLink: str
+    -dateAdded: str
+
+    -emotion: Emotion
+    -happinessScore: int
+
+    -artistList: list[Artists]
+    +getGenreList(): list[Genre]
+
+    +<color:red>removeSong(): None</color>
+    +<color:red>addSongComplete(): None</color>
+    +<color:red>addSongToPlaylist(playlistID: str): None</color>
+
+}
+
+Playlist "1..*" *-- Song
+
+enum Genre {
+    POP
+    ROCK
+    RAP
+    COUNTRY
+    JAZZ
+    CLASSICAL
+    EDM
+    OTHER
+}
+
+class Artist {
+    -id: str
+    -name: str
+    -genreList: list[Genre]
+}
+
+Artist "1..*" *-- Genre
+Song "1..*" *-- Artist
+
+class PlaylistComparator {
+    -databasePlaylist: DatabasePlaylist
+    -spotPlaylist: SpotPlaylist
+
+
+    +__init__(self , playlistID: str , authorizationTolken: json): PlaylistComparator
+    +<color:red>needsUpdate(): bool</color>
+    +<color:red>updateData(): bool</color>
+}
+
+note bottom of PlaylistComparator
+    This class will compare the two unupdated
+    playlists and update the database playlist
+end note
+
+SpotifyAccessor <|-- PlaylistComparator
+PlaylistComparator *-- SpotPlaylist
+PlaylistComparator *-- DatabasePlaylist
+
+User *-- PlaylistComparator
+
+
+
+class AIConnection {
+    -GPTAI: GPTAI
+    -instance: AIConnection
+    +<color:red>getEmotionData(Song): json</color>
+}
+
+AIConnection *-- AIConnection
+
+
+note right of AIConnection
+    This will return an emotion enum 
+    and a happiness score I think
+end note
+
+enum Emotion {
+    HAPPY
+    SAD
+    ANGRY
+    CALM
+    EXCITED
+    SCARED
+    DISGUSTED
+    SURPRISED
+}
+
+Song *-- Emotion
+
+
+
+
+class Query {
+    -__userID: str
+    -__dateAddedAfter: str
+    -__dateAddedBefore: str
+    -__artistList: list[Artist]
+    -__dateMadeAfter: str
+    -__dateMadeBefore: str
+
+    +__init__(self, userID: str, dateAddedAfter: str, dateAddedBefore: str, artistList: list[Artist], dateMadeAfter: str, dateMadeBefore: str): Query
+    +standardizeDate(date: str | date): str
+    +isDateAddedConstraint(): bool
+    +isArtistConstraint(): bool
+    +isDateMadeConstraint(): bool
+    +<color:blue>execute(): list</color>
+}
+
+AppMain *-- Query
+
+
+class HistorySong {
+    -timeListened: str
+
+    +__init__(id: str, timeListened: str): HistorySong
+    +isFiller(): bool
+    +getTimeListened(): str
+}
+
+Song <|-- HistorySong
+
+
+class ListeningHistoryStripper {
+    -__userID: str
+    -__songStack: list[HistorySong]
+
+    +__init__(self, access_token: str, userID: str): ListeningHistoryStripper
+    +getRecentTracks(limit: int = 300, stopAtTimestamp: datetime|None = None): None
+    +getRecentTracksOLD(limit: int = 300, stopAtTimestamp: datetime|None = None): None
+    +__addListSongDicsToStack(songList: list[dict], stopAtTimestamp: datetime|None = None): bool
+    +getSecondsDifference(time1: str, time2: str): int
+    +isSecondDifferenceShort(time1: str, time2: str): bool
+    +isSecondDifferenceLong(time1: str, time2: str): bool
+    +add(song: HistorySong): None
+    +pop(): HistorySong
+    +peek(): HistorySong
+    +length(): int
+    +getUserID(): str
+    +__getSongStack(): list[HistorySong]
+}
+
+SpotifyAccessor <|-- ListeningHistoryStripper
+ListeningHistoryStripper *-- HistorySong
+
+
+note as N1 
+    Colors of methods represent paths from root
+     a.k.a who calls it
+
+    Color Legend of Overall Class:
+        <color:Orange>Orange</color>: This is root of the project and 
+        is where we connect to the front end 
+        through the api
+end note
+
+
+@enduml

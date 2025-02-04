@@ -1,0 +1,14 @@
+# Ignore __pycache__ directories and compiled .pyc files
+__pycache__/
+*.pyc
+.env
+
+myenv/
+
+.cache
+
+.pytest_cache/
+
+TestFolder/__pycache__/
+
+JsonStorage
